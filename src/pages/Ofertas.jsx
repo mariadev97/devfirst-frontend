@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ofertasMock } from "../mocks/data";
+import { useEffect, useState } from "react";
+import { getOfertas } from "../api/ofertas";
 import OfertaCard from "../components/OfertaCard";
 
 export default function Ofertas() {
@@ -7,25 +7,39 @@ export default function Ofertas() {
   const [modalidad, setModalidad] = useState("");
   const [area, setArea] = useState("");
 
-  const ofertasFiltradas = useMemo(() => {
-    return ofertasMock.filter((o) => {
-      const matchTec =
-        !tecnologia ||
-        o.tecnologias.some((t) =>
-          t.toLowerCase().includes(tecnologia.toLowerCase())
-        );
-      const matchModalidad = !modalidad || o.modalidad === modalidad;
-      const matchArea = !area || o.area === area;
-      return matchTec && matchModalidad && matchArea;
-    });
+  const [ofertas, setOfertas] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setCargando(true);
+    setError("");
+
+    const filtros = {};
+    if (tecnologia) filtros.tecnologia = tecnologia;
+    if (modalidad) filtros.modalidad = modalidad;
+    if (area) filtros.area = area;
+
+    // Pequeño debounce para no lanzar una petición en cada pulsación de tecla
+    const timeoutId = setTimeout(() => {
+      getOfertas(filtros)
+        .then(setOfertas)
+        .catch(() => setError("No se pudieron cargar las ofertas. Inténtalo de nuevo."))
+        .finally(() => setCargando(false));
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
   }, [tecnologia, modalidad, area]);
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
       <h1 className="font-display font-bold text-2xl">Ofertas para perfiles junior</h1>
       <p className="text-ink-soft text-sm mt-1">
-        {ofertasFiltradas.length} oferta{ofertasFiltradas.length !== 1 && "s"} disponible
-        {ofertasFiltradas.length !== 1 && "s"}
+        {cargando
+          ? "Buscando ofertas..."
+          : `${ofertas.length} oferta${ofertas.length !== 1 ? "s" : ""} disponible${
+              ofertas.length !== 1 ? "s" : ""
+            }`}
       </p>
 
       <div className="flex flex-wrap gap-3 mt-6">
@@ -57,13 +71,24 @@ export default function Ofertas() {
         </select>
       </div>
 
+      {error && (
+        <p className="text-sm text-coral bg-coral/10 border border-coral/20 rounded-lg px-3 py-2 mt-6">
+          {error}
+        </p>
+      )}
+
       <div className="grid sm:grid-cols-2 gap-5 mt-8">
-        {ofertasFiltradas.map((oferta) => (
+        {!cargando && !error && ofertas.map((oferta) => (
           <OfertaCard key={oferta._id} oferta={oferta} />
         ))}
-        {ofertasFiltradas.length === 0 && (
+        {!cargando && !error && ofertas.length === 0 && (
           <p className="text-ink-soft text-sm col-span-2 py-10 text-center">
             No hay ofertas que coincidan con esos filtros.
+          </p>
+        )}
+        {cargando && (
+          <p className="text-ink-soft text-sm col-span-2 py-10 text-center">
+            Cargando ofertas...
           </p>
         )}
       </div>

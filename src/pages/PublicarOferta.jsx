@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { crearOferta } from "../api/ofertas";
 
 export default function PublicarOferta() {
   const navigate = useNavigate();
@@ -13,15 +14,36 @@ export default function PublicarOferta() {
     salarioMax: "",
     formate: false,
   });
+  const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   function handleChange(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    // TODO: POST /api/ofertas — el rango salarial es obligatorio, igual que en el back
-    navigate("/mis-ofertas");
+    setError("");
+    setEnviando(true);
+    try {
+      const payload = {
+        ...form,
+        tecnologias: form.tecnologias
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+        salarioMin: Number(form.salarioMin),
+        salarioMax: Number(form.salarioMax),
+      };
+      await crearOferta(payload);
+      navigate("/mis-ofertas");
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "No se pudo publicar la oferta."
+      );
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
@@ -30,6 +52,12 @@ export default function PublicarOferta() {
       <p className="text-ink-soft text-sm mt-1">
         El rango salarial es obligatorio: en DevFirst toda oferta es transparente.
       </p>
+
+      {error && (
+        <p className="text-sm text-coral bg-coral/10 border border-coral/20 rounded-lg px-3 py-2 mt-4">
+          {error}
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-5">
         <Field
@@ -113,9 +141,10 @@ export default function PublicarOferta() {
 
         <button
           type="submit"
-          className="bg-violet text-white font-semibold px-6 py-3 rounded-full hover:bg-ink transition-colors"
+          disabled={enviando}
+          className="bg-violet text-white font-semibold px-6 py-3 rounded-full hover:bg-ink transition-colors disabled:opacity-60"
         >
-          Publicar oferta
+          {enviando ? "Publicando..." : "Publicar oferta"}
         </button>
       </form>
     </div>

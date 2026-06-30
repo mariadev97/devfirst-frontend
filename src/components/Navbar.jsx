@@ -59,7 +59,7 @@ export default function Navbar() {
           ) : (
             <>
               <span className="hidden sm:inline text-sm text-ink-soft">
-                Hola, {user.nombre}
+                {user.email}
               </span>
               <button
                 onClick={handleLogout}

@@ -5,14 +5,33 @@ import { useAuth } from "../context/AuthContext";
 export default function Registro() {
   const [role, setRole] = useState("candidato");
   const [nombre, setNombre] = useState("");
-  const { login } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const { register } = useAuth();
   const navigate = useNavigate();
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    // TODO: cuando exista el backend, aquí haremos POST /api/auth/register
-    login({ role, nombre: nombre || "Usuario" });
-    navigate(role === "candidato" ? "/perfil" : "/perfil");
+    setError("");
+    setCargando(true);
+    try {
+      const payload = {
+        email,
+        password,
+        role,
+        ...(role === "candidato" ? { nombre } : { nombreEmpresa: nombre }),
+      };
+      await register(payload);
+      navigate("/perfil");
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "No se pudo crear la cuenta. Inténtalo de nuevo."
+      );
+    } finally {
+      setCargando(false);
+    }
   }
 
   return (
@@ -37,6 +56,12 @@ export default function Registro() {
         />
       </div>
 
+      {error && (
+        <p className="text-sm text-coral bg-coral/10 border border-coral/20 rounded-lg px-3 py-2 mt-4">
+          {error}
+        </p>
+      )}
+
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <Field
           label={role === "candidato" ? "Nombre completo" : "Nombre de la empresa"}
@@ -44,14 +69,27 @@ export default function Registro() {
           onChange={setNombre}
           placeholder={role === "candidato" ? "María Álvarez" : "TechStartup Asturias"}
         />
-        <Field label="Email" type="email" placeholder="tucorreo@ejemplo.com" />
-        <Field label="Contraseña" type="password" placeholder="••••••••" />
+        <Field
+          label="Email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          placeholder="tucorreo@ejemplo.com"
+        />
+        <Field
+          label="Contraseña"
+          type="password"
+          value={password}
+          onChange={setPassword}
+          placeholder="••••••••"
+        />
 
         <button
           type="submit"
-          className="w-full bg-violet text-white font-semibold py-3 rounded-full hover:bg-ink transition-colors mt-2"
+          disabled={cargando}
+          className="w-full bg-violet text-white font-semibold py-3 rounded-full hover:bg-ink transition-colors mt-2 disabled:opacity-60"
         >
-          Crear cuenta como {role}
+          {cargando ? "Creando cuenta..." : `Crear cuenta como ${role}`}
         </button>
       </form>
 
@@ -89,7 +127,7 @@ function Field({ label, type = "text", value, onChange, placeholder }) {
       <input
         type={type}
         value={value}
-        onChange={(e) => onChange?.(e.target.value)}
+        onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required
         className="mt-1 w-full border border-ink/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet"

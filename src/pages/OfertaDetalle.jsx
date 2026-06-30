@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ofertasMock } from "../mocks/data";
+import { getOferta } from "../api/ofertas";
+import { aplicarOferta } from "../api/candidaturas";
 import { useAuth } from "../context/AuthContext";
 import TechTag from "../components/TechTag";
 
@@ -13,23 +14,55 @@ const modalidadLabel = {
 export default function OfertaDetalle() {
   const { id } = useParams();
   const { user } = useAuth();
-  const [aplicado, setAplicado] = useState(false);
-  const oferta = ofertasMock.find((o) => o._id === id);
 
-  if (!oferta) {
+  const [oferta, setOferta] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+
+  const [aplicando, setAplicando] = useState(false);
+  const [aplicado, setAplicado] = useState(false);
+  const [errorAplicar, setErrorAplicar] = useState("");
+
+  useEffect(() => {
+    setCargando(true);
+    getOferta(id)
+      .then(setOferta)
+      .catch(() => setError("No se pudo cargar esta oferta."))
+      .finally(() => setCargando(false));
+  }, [id]);
+
+  async function handleAplicar() {
+    setAplicando(true);
+    setErrorAplicar("");
+    try {
+      await aplicarOferta(id);
+      setAplicado(true);
+    } catch (err) {
+      setErrorAplicar(
+        err.response?.data?.message || "No se pudo enviar tu candidatura."
+      );
+    } finally {
+      setAplicando(false);
+    }
+  }
+
+  if (cargando) {
+    return (
+      <div className="max-w-3xl mx-auto px-6 py-16 text-center text-ink-soft">
+        Cargando oferta...
+      </div>
+    );
+  }
+
+  if (error || !oferta) {
     return (
       <div className="max-w-3xl mx-auto px-6 py-16 text-center">
-        <p className="text-ink-soft">No se encontró esta oferta.</p>
+        <p className="text-ink-soft">{error || "No se encontró esta oferta."}</p>
         <Link to="/ofertas" className="text-violet font-medium">
           Volver a ofertas
         </Link>
       </div>
     );
-  }
-
-  function handleAplicar() {
-    // TODO: cuando exista el backend, POST /api/candidaturas
-    setAplicado(true);
   }
 
   return (
@@ -42,7 +75,7 @@ export default function OfertaDetalle() {
         <div>
           <h1 className="font-display font-bold text-2xl">{oferta.titulo}</h1>
           <p className="text-ink-soft mt-1">
-            {oferta.empresa.nombreEmpresa} · {oferta.empresa.ubicacion}
+            {oferta.empresa?.nombreEmpresa} · {oferta.empresa?.ubicacion}
           </p>
         </div>
         {oferta.formate && (
@@ -78,19 +111,28 @@ export default function OfertaDetalle() {
             como candidato para aplicar a esta oferta.
           </p>
         )}
+
         {user?.role === "candidato" && !aplicado && (
-          <button
-            onClick={handleAplicar}
-            className="bg-violet text-white font-semibold px-6 py-3 rounded-full hover:bg-ink transition-colors"
-          >
-            Aplicar a esta oferta
-          </button>
+          <>
+            <button
+              onClick={handleAplicar}
+              disabled={aplicando}
+              className="bg-violet text-white font-semibold px-6 py-3 rounded-full hover:bg-ink transition-colors disabled:opacity-60"
+            >
+              {aplicando ? "Enviando..." : "Aplicar a esta oferta"}
+            </button>
+            {errorAplicar && (
+              <p className="text-sm text-coral mt-3">{errorAplicar}</p>
+            )}
+          </>
         )}
+
         {user?.role === "candidato" && aplicado && (
           <p className="text-mint font-medium">
             ✓ Has aplicado a esta oferta. Sigue su estado en "Mis candidaturas".
           </p>
         )}
+
         {user?.role === "empresa" && (
           <p className="text-sm text-ink-soft">
             Has iniciado sesión como empresa. Solo los candidatos pueden aplicar a ofertas.

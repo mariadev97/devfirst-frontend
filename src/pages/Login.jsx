@@ -4,15 +4,26 @@ import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    // TODO: cuando exista el backend, aquí haremos POST /api/auth/login
-    // Por ahora, simulamos login como candidato para poder navegar la app.
-    login({ role: "candidato", nombre: "María" });
-    navigate("/ofertas");
+    setError("");
+    setCargando(true);
+    try {
+      await login(email, password);
+      navigate("/ofertas");
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "No se pudo iniciar sesión. Inténtalo de nuevo."
+      );
+    } finally {
+      setCargando(false);
+    }
   }
 
   return (
@@ -22,7 +33,13 @@ export default function Login() {
         Accede a tu cuenta de DevFirst.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+      {error && (
+        <p className="text-sm text-coral bg-coral/10 border border-coral/20 rounded-lg px-3 py-2 mt-4">
+          {error}
+        </p>
+      )}
+
+      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <label className="block">
           <span className="text-sm font-medium text-ink-soft">Email</span>
           <input
@@ -38,6 +55,8 @@ export default function Login() {
           <span className="text-sm font-medium text-ink-soft">Contraseña</span>
           <input
             type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
             required
             className="mt-1 w-full border border-ink/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet"
@@ -46,9 +65,10 @@ export default function Login() {
 
         <button
           type="submit"
-          className="w-full bg-violet text-white font-semibold py-3 rounded-full hover:bg-ink transition-colors mt-2"
+          disabled={cargando}
+          className="w-full bg-violet text-white font-semibold py-3 rounded-full hover:bg-ink transition-colors mt-2 disabled:opacity-60"
         >
-          Entrar
+          {cargando ? "Entrando..." : "Entrar"}
         </button>
       </form>
 

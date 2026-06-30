@@ -1,10 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { candidatoMock, empresaMock } from "../mocks/data";
+import { getMiPerfil, actualizarMiPerfil } from "../api/perfil";
 import TechTag from "../components/TechTag";
 
 export default function Perfil() {
   const { user } = useAuth();
+  const [perfil, setPerfil] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!user) return;
+    setCargando(true);
+    getMiPerfil()
+      .then(setPerfil)
+      .catch(() => setError("No se pudo cargar tu perfil."))
+      .finally(() => setCargando(false));
+  }, [user]);
 
   if (!user) {
     return (
@@ -14,21 +26,59 @@ export default function Perfil() {
     );
   }
 
-  return user.role === "candidato" ? <PerfilCandidato /> : <PerfilEmpresa />;
+  if (cargando) {
+    return (
+      <div className="max-w-xl mx-auto px-6 py-16 text-center text-ink-soft">
+        Cargando perfil...
+      </div>
+    );
+  }
+
+  if (error || !perfil) {
+    return (
+      <div className="max-w-xl mx-auto px-6 py-16 text-center text-coral">
+        {error || "No se encontró tu perfil."}
+      </div>
+    );
+  }
+
+  return user.role === "candidato" ? (
+    <PerfilCandidato perfilInicial={perfil} />
+  ) : (
+    <PerfilEmpresa perfilInicial={perfil} />
+  );
 }
 
-function PerfilCandidato() {
-  const [perfil, setPerfil] = useState(candidatoMock);
+function PerfilCandidato({ perfilInicial }) {
+  const [perfil, setPerfil] = useState(perfilInicial);
   const [editando, setEditando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+  const [stackTexto, setStackTexto] = useState(
+    (perfilInicial.stackTecnologico || []).join(", ")
+  );
 
   function handleChange(field, value) {
     setPerfil((p) => ({ ...p, [field]: value }));
   }
 
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault();
-    // TODO: PUT /api/candidatos/:id
-    setEditando(false);
+    setGuardando(true);
+    setError("");
+    try {
+      const stackTecnologico = stackTexto
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const actualizado = await actualizarMiPerfil({ ...perfil, stackTecnologico });
+      setPerfil(actualizado);
+      setEditando(false);
+    } catch {
+      setError("No se pudieron guardar los cambios.");
+    } finally {
+      setGuardando(false);
+    }
   }
 
   return (
@@ -42,6 +92,8 @@ function PerfilCandidato() {
           {editando ? "Cancelar" : "Editar"}
         </button>
       </div>
+
+      {error && <p className="text-sm text-coral mt-4">{error}</p>}
 
       <form onSubmit={handleSave} className="mt-6 space-y-5">
         <div className="grid sm:grid-cols-2 gap-4">
@@ -73,19 +125,29 @@ function PerfilCandidato() {
 
         <div>
           <span className="text-sm font-medium text-ink-soft">Stack tecnológico</span>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {perfil.stackTecnologico.map((t) => (
-              <TechTag key={t}>{t}</TechTag>
-            ))}
-          </div>
+          {editando ? (
+            <input
+              value={stackTexto}
+              onChange={(e) => setStackTexto(e.target.value)}
+              placeholder="React, Node.js, MongoDB"
+              className="mt-1 w-full border border-ink/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet/40"
+            />
+          ) : (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {(perfil.stackTecnologico || []).map((t) => (
+                <TechTag key={t}>{t}</TechTag>
+              ))}
+            </div>
+          )}
         </div>
 
         {editando && (
           <button
             type="submit"
-            className="bg-violet text-white font-semibold px-6 py-2.5 rounded-full hover:bg-ink transition-colors"
+            disabled={guardando}
+            className="bg-violet text-white font-semibold px-6 py-2.5 rounded-full hover:bg-ink transition-colors disabled:opacity-60"
           >
-            Guardar cambios
+            {guardando ? "Guardando..." : "Guardar cambios"}
           </button>
         )}
       </form>
@@ -93,18 +155,29 @@ function PerfilCandidato() {
   );
 }
 
-function PerfilEmpresa() {
-  const [perfil, setPerfil] = useState(empresaMock);
+function PerfilEmpresa({ perfilInicial }) {
+  const [perfil, setPerfil] = useState(perfilInicial);
   const [editando, setEditando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
 
   function handleChange(field, value) {
     setPerfil((p) => ({ ...p, [field]: value }));
   }
 
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault();
-    // TODO: PUT /api/empresas/:id
-    setEditando(false);
+    setGuardando(true);
+    setError("");
+    try {
+      const actualizado = await actualizarMiPerfil(perfil);
+      setPerfil(actualizado);
+      setEditando(false);
+    } catch {
+      setError("No se pudieron guardar los cambios.");
+    } finally {
+      setGuardando(false);
+    }
   }
 
   return (
@@ -118,6 +191,8 @@ function PerfilEmpresa() {
           {editando ? "Cancelar" : "Editar"}
         </button>
       </div>
+
+      {error && <p className="text-sm text-coral mt-4">{error}</p>}
 
       <form onSubmit={handleSave} className="mt-6 space-y-5">
         <Field
@@ -144,22 +219,23 @@ function PerfilEmpresa() {
           <span className="text-sm font-medium text-ink-soft">Descripción</span>
           {editando ? (
             <textarea
-              value={perfil.descripcion}
+              value={perfil.descripcion || ""}
               onChange={(e) => handleChange("descripcion", e.target.value)}
               rows={4}
               className="mt-1 w-full border border-ink/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet/40"
             />
           ) : (
-            <p className="mt-1 text-sm">{perfil.descripcion}</p>
+            <p className="mt-1 text-sm">{perfil.descripcion || "—"}</p>
           )}
         </div>
 
         {editando && (
           <button
             type="submit"
-            className="bg-violet text-white font-semibold px-6 py-2.5 rounded-full hover:bg-ink transition-colors"
+            disabled={guardando}
+            className="bg-violet text-white font-semibold px-6 py-2.5 rounded-full hover:bg-ink transition-colors disabled:opacity-60"
           >
-            Guardar cambios
+            {guardando ? "Guardando..." : "Guardar cambios"}
           </button>
         )}
       </form>
@@ -173,7 +249,7 @@ function Field({ label, value, editable, onChange }) {
       <span className="text-sm font-medium text-ink-soft">{label}</span>
       {editable ? (
         <input
-          value={value}
+          value={value || ""}
           onChange={(e) => onChange(e.target.value)}
           className="mt-1 w-full border border-ink/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet/40"
         />

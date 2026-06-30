@@ -1,9 +1,33 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ofertasMock, candidatosRecibidosMock } from "../mocks/data";
+import { getMisOfertas } from "../api/ofertas";
+import { getCandidaturasPorOferta } from "../api/candidaturas";
 
 export default function MisOfertas() {
-  // Mock: mostramos solo las ofertas de la primera empresa
-  const misOfertas = ofertasMock.filter((o) => o.empresa._id === "e1");
+  const [ofertas, setOfertas] = useState([]);
+  const [candidaturasPorOferta, setCandidaturasPorOferta] = useState({});
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setCargando(true);
+    setError("");
+    getMisOfertas()
+      .then(async (ofertasRecibidas) => {
+        setOfertas(ofertasRecibidas);
+        // Por cada oferta, pedimos sus candidaturas en paralelo
+        const entradas = await Promise.all(
+          ofertasRecibidas.map((o) =>
+            getCandidaturasPorOferta(o._id)
+              .then((cands) => [o._id, cands])
+              .catch(() => [o._id, []])
+          )
+        );
+        setCandidaturasPorOferta(Object.fromEntries(entradas));
+      })
+      .catch(() => setError("No se pudieron cargar tus ofertas."))
+      .finally(() => setCargando(false));
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-12">
@@ -17,11 +41,20 @@ export default function MisOfertas() {
         </Link>
       </div>
 
+      {cargando && (
+        <p className="text-ink-soft text-sm mt-8 text-center">Cargando tus ofertas...</p>
+      )}
+      {error && <p className="text-sm text-coral mt-8">{error}</p>}
+
+      {!cargando && !error && ofertas.length === 0 && (
+        <p className="text-ink-soft text-sm mt-8 text-center">
+          Aún no has publicado ninguna oferta.
+        </p>
+      )}
+
       <div className="mt-8 space-y-6">
-        {misOfertas.map((oferta) => {
-          const candidatos = candidatosRecibidosMock.filter(
-            (c) => c.oferta._id === oferta._id
-          );
+        {ofertas.map((oferta) => {
+          const candidatos = candidaturasPorOferta[oferta._id] || [];
           return (
             <div
               key={oferta._id}
@@ -46,7 +79,7 @@ export default function MisOfertas() {
                       className="py-3 flex items-center justify-between text-sm"
                     >
                       <span className="font-medium">
-                        {c.candidato.nombre} {c.candidato.apellidos}
+                        {c.candidato?.nombre} {c.candidato?.apellidos}
                       </span>
                       <span className="font-mono-tag text-xs text-violet bg-violet-soft px-2 py-1 rounded">
                         {c.estado}

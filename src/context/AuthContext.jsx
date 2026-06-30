@@ -1,22 +1,48 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { loginRequest, registerRequest } from "../api/auth";
 
-// Por ahora simulamos sesión en memoria. Cuando montemos el backend,
-// esto pasará a guardar el JWT (p.ej. en localStorage) y a llamar a la API.
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null); // { role: "candidato" | "empresa", nombre }
+  const [user, setUser] = useState(null); // { id, email, role }
+  const [cargandoSesion, setCargandoSesion] = useState(true);
 
-  function login({ role, nombre }) {
-    setUser({ role, nombre });
+  // Al cargar la app, intentamos restaurar la sesión guardada en localStorage.
+  useEffect(() => {
+    const token = localStorage.getItem("devfirst_token");
+    const userGuardado = localStorage.getItem("devfirst_user");
+    if (token && userGuardado) {
+      setUser(JSON.parse(userGuardado));
+    }
+    setCargandoSesion(false);
+  }, []);
+
+  function guardarSesion({ token, user }) {
+    localStorage.setItem("devfirst_token", token);
+    localStorage.setItem("devfirst_user", JSON.stringify(user));
+    setUser(user);
+  }
+
+  async function login(email, password) {
+    const data = await loginRequest(email, password);
+    guardarSesion(data);
+    return data;
+  }
+
+  async function register(formData) {
+    const data = await registerRequest(formData);
+    guardarSesion(data);
+    return data;
   }
 
   function logout() {
+    localStorage.removeItem("devfirst_token");
+    localStorage.removeItem("devfirst_user");
     setUser(null);
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, cargandoSesion, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
