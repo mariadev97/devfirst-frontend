@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getMisOfertas } from "../api/ofertas";
 import { getCandidaturasPorOferta } from "../api/candidaturas";
+import TechTag from "../components/TechTag";
 
 export default function MisOfertas() {
   const [ofertas, setOfertas] = useState([]);
@@ -74,17 +75,7 @@ export default function MisOfertas() {
               ) : (
                 <ul className="mt-4 divide-y divide-ink/10">
                   {candidatos.map((c) => (
-                    <li
-                      key={c._id}
-                      className="py-3 flex items-center justify-between text-sm"
-                    >
-                      <span className="font-medium">
-                        {c.candidato?.nombre} {c.candidato?.apellidos}
-                      </span>
-                      <span className="font-mono-tag text-xs text-violet bg-violet-soft px-2 py-1 rounded">
-                        {c.estado}
-                      </span>
-                    </li>
+                    <CandidaturaItem key={c._id} candidatura={c} />
                   ))}
                 </ul>
               )}
@@ -93,5 +84,79 @@ export default function MisOfertas() {
         })}
       </div>
     </div>
+  );
+}
+
+function CandidaturaItem({ candidatura }) {
+  const [abierto, setAbierto] = useState(false);
+  const candidato = candidatura.candidato;
+
+  return (
+    <li className="py-3">
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        className="w-full flex items-center justify-between text-sm text-left"
+      >
+        <span className="font-medium">
+          {candidato?.nombre} {candidato?.apellidos}
+        </span>
+        <span className="flex items-center gap-3">
+          <span className="font-mono-tag text-xs text-violet bg-violet-soft px-2 py-1 rounded">
+            {candidatura.estado}
+          </span>
+          <span className="text-ink-soft text-xs">
+            {abierto ? "Ocultar perfil ▲" : "Ver perfil ▼"}
+          </span>
+        </span>
+      </button>
+
+      {abierto && (
+        <div className="mt-3 ml-1 pl-3 border-l-2 border-violet-soft text-sm space-y-2">
+          {candidato?.formacion && (
+            <p>
+              <span className="text-ink-soft">Formación: </span>
+              {candidato.formacion}
+            </p>
+          )}
+          {candidato?.ubicacion && (
+            <p>
+              <span className="text-ink-soft">Ubicación: </span>
+              {candidato.ubicacion}
+            </p>
+          )}
+          {candidato?.experiencia && (
+            <p>
+              <span className="text-ink-soft">Experiencia: </span>
+              {candidato.experiencia}
+            </p>
+          )}
+          <p>
+            <span className="text-ink-soft">Disponibilidad: </span>
+            {candidato?.disponibilidad ? "Disponible" : "No disponible"}
+          </p>
+          {candidato?.stackTecnologico?.length > 0 && (
+            <div>
+              <span className="text-ink-soft block mb-1">Stack tecnológico:</span>
+              <div className="flex flex-wrap gap-2">
+                {candidato.stackTecnologico.map((t) => (
+                  <TechTag key={t}>{t}</TechTag>
+                ))}
+              </div>
+            </div>
+          )}
+          {candidato?.user?.email && (
+            <a
+              href={`mailto:${candidato.user.email}?subject=${encodeURIComponent(
+                "Tu candidatura en DevFirst"
+              )}`}
+              className="inline-block mt-2 text-xs font-semibold bg-violet text-white px-4 py-2 rounded-full hover:bg-ink transition-colors"
+            >
+              Contactar por email ↗
+            </a>
+          )}
+        </div>
+      )}
+    </li>
   );
 }
