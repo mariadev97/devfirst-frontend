@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Paleta DevFirst, derivada del logo: azul marino institucional,
+     violeta de marca y verde menta como acento de "primer paso" */
+  --color-ink: #0b2440;
+  --color-ink-soft: #16314f;
+  --color-paper: #f6f7fb;
+  --color-paper-dim: #eceef5;
+  --color-violet: #5b4fe0;
+  --color-violet-soft: #ebe9fd;
+  --color-mint: #2bd9a6;
+  --color-mint-soft: #d8fbef;
+  --color-coral: #ef6a5a;
+
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+}
+
+.font-mono-tag {
+  font-family: var(--font-mono);
+}
